@@ -99,28 +99,31 @@ function getMousePos(e) {
 
 // 원격 드로잉 처리
 function handleRemoteDrawing(data, peerId) {
+    console.log('🎨 원격 데이터:', data.type, 'from:', peerId);
+
     if (data.type === 'draw-start') {
         ctx.beginPath();
         ctx.moveTo(data.x, data.y);
         ctx.strokeStyle = data.eraser ? '#FFFFFF' : data.color;
         ctx.lineWidth = data.size;
+        console.log('✏️ 원격 드로잉 시작:', data.color);
     } else if (data.type === 'draw') {
         ctx.lineTo(data.x, data.y);
         ctx.stroke();
     } else if (data.type === 'draw-end') {
-        // Drawing ended
+        console.log('✅ 원격 드로잉 종료');
     } else if (data.type === 'clear') {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        console.log('🗑️ 원격에서 캔버스 지움');
     } else if (data.type === 'cursor-move') {
         updateRemoteCursor(peerId, data.x, data.y, data.color);
     } else if (data.type === 'peer-list') {
-        // 호스트로부터 받은 피어 목록
-        console.log('현재 참가자:', data.peers);
+        console.log('📋 현재 참가자:', data.peers);
     } else if (data.type === 'peer-joined') {
-        console.log('새 참가자:', data.peerId);
+        console.log('👋 새 참가자:', data.peerId);
         updatePlayerCount();
     } else if (data.type === 'peer-left') {
-        console.log('참가자 퇴장:', data.peerId);
+        console.log('👋 참가자 퇴장:', data.peerId);
         removeRemoteCursor(data.peerId);
         updatePlayerCount();
     }
@@ -206,21 +209,25 @@ function showStatus(message, type = 'info') {
 createRoomBtn.addEventListener('click', async () => {
     try {
         showStatus('방을 생성하는 중...', 'info');
+        console.log('🚀 방 만들기 시작');
 
         peerConnection = new PeerConnection();
 
         // 데이터 수신 핸들러 설정
         peerConnection.onDataReceived = handleRemoteDrawing;
-        peerConnection.onPeerConnected = () => {
+        peerConnection.onPeerConnected = (peerId) => {
+            console.log('✅ 새 참가자 연결됨:', peerId);
             updatePlayerCount();
             showStatus('새로운 참가자가 들어왔습니다!', 'success');
         };
-        peerConnection.onPeerDisconnected = () => {
+        peerConnection.onPeerDisconnected = (peerId) => {
+            console.log('❌ 참가자 퇴장:', peerId);
             updatePlayerCount();
             showStatus('참가자가 나갔습니다.', 'info');
         };
 
         const roomId = await peerConnection.createRoom();
+        console.log('✅ 방 생성 완료! ID:', roomId);
 
         currentRoomId.textContent = roomId;
         roomInfo.style.display = 'flex';
@@ -232,6 +239,7 @@ createRoomBtn.addEventListener('click', async () => {
 
         initCanvas();
     } catch (err) {
+        console.error('❌ 방 생성 실패:', err);
         showStatus('방 생성 실패: ' + err.message, 'error');
     }
 });
@@ -247,19 +255,26 @@ joinRoomBtn.addEventListener('click', async () => {
 
     try {
         showStatus('방에 참가하는 중...', 'info');
+        console.log('🚪 방 참가 시도:', roomId);
 
         peerConnection = new PeerConnection();
 
-        peerConnection.onDataReceived = handleRemoteDrawing;
-        peerConnection.onPeerConnected = () => {
-            updatePlayerCount();
-            showStatus('새로운 참가자가 들어왔습니다!', 'success');
+        peerConnection.onDataReceived = (data, peerId) => {
+            console.log('📦 데이터 수신:', data.type, 'from:', peerId);
+            handleRemoteDrawing(data, peerId);
         };
-        peerConnection.onPeerDisconnected = () => {
+        peerConnection.onPeerConnected = (peerId) => {
+            console.log('✅ 연결 성공:', peerId);
+            updatePlayerCount();
+            showStatus('연결되었습니다!', 'success');
+        };
+        peerConnection.onPeerDisconnected = (peerId) => {
+            console.log('❌ 연결 종료:', peerId);
             updatePlayerCount();
         };
 
         await peerConnection.joinRoom(roomId);
+        console.log('✅ 방 참가 성공!');
 
         currentRoomId.textContent = roomId;
         roomInfo.style.display = 'flex';
@@ -271,6 +286,7 @@ joinRoomBtn.addEventListener('click', async () => {
 
         initCanvas();
     } catch (err) {
+        console.error('❌ 방 참가 실패:', err);
         showStatus('방 참가 실패: ' + err.message, 'error');
     }
 });
