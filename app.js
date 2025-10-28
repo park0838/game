@@ -119,13 +119,21 @@ function handleRemoteDrawing(data, peerId) {
         updateRemoteCursor(peerId, data.x, data.y, data.color);
     } else if (data.type === 'peer-list') {
         console.log('📋 현재 참가자:', data.peers);
+        // 참가자 입장에서 총 인원 = 호스트(1) + 다른 참가자들(data.peers.length) + 자신(1)
+        // 하지만 data.peers에 자신이 포함되어 있으므로: 호스트(1) + data.peers.length
+        const totalCount = 1 + data.peers.length;
+        playerCount.textContent = totalCount;
     } else if (data.type === 'peer-joined') {
         console.log('👋 새 참가자:', data.peerId);
-        updatePlayerCount();
+        // 참가자도 인원 수 증가
+        const currentCount = parseInt(playerCount.textContent);
+        playerCount.textContent = currentCount + 1;
     } else if (data.type === 'peer-left') {
         console.log('👋 참가자 퇴장:', data.peerId);
         removeRemoteCursor(data.peerId);
-        updatePlayerCount();
+        // 참가자도 인원 수 감소
+        const currentCount = parseInt(playerCount.textContent);
+        playerCount.textContent = Math.max(1, currentCount - 1);
     }
 }
 

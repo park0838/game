@@ -92,7 +92,8 @@ class PeerConnection {
     handleIncomingConnection(conn) {
         const peerId = conn.peer;
 
-        conn.on('open', () => {
+        // 연결 초기화 함수
+        const initConnection = () => {
             console.log('새 피어 연결됨:', peerId);
             this.connections.set(peerId, conn);
 
@@ -114,7 +115,14 @@ class PeerConnection {
                     peerId: peerId
                 }, peerId);
             }
-        });
+        };
+
+        // 이미 open 상태면 바로 초기화, 아니면 open 이벤트 대기
+        if (conn.open) {
+            initConnection();
+        } else {
+            conn.on('open', initConnection);
+        }
 
         conn.on('data', (data) => {
             // 데이터 중계 (호스트인 경우)
