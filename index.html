@@ -3,18 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎨 실시간 협력 드로잉</title>
+    <title>🎨 스케치퀴즈 - 그림으로 맞춰봐!</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
+        <!-- Nickname Modal -->
+        <div id="nicknameModal" class="modal">
+            <div class="modal-content">
+                <h2>🎮 닉네임을 입력하세요</h2>
+                <input type="text" id="nicknameInput" placeholder="닉네임 (최대 10자)" maxlength="10" />
+                <button id="setNicknameBtn" class="btn btn-primary">확인</button>
+            </div>
+        </div>
+
         <header>
-            <h1>🎨 실시간 협력 드로잉</h1>
-            <p class="subtitle">링크만 공유하면 함께 그릴 수 있어요!</p>
+            <h1>🎨 스케치퀴즈</h1>
+            <p class="subtitle">그림으로 단어를 맞춰보세요!</p>
         </header>
 
         <!-- Room Controls -->
-        <div class="controls-panel">
+        <div class="controls-panel" id="lobbyPanel">
             <div class="room-controls">
                 <div class="control-group">
                     <button id="createRoomBtn" class="btn btn-primary">새 방 만들기</button>
@@ -29,42 +38,87 @@
                         <button id="copyLinkBtn" class="btn-icon" title="링크 복사">📋</button>
                     </div>
                     <div class="info-box">
-                        <strong>접속자:</strong> <span id="playerCount">1</span>명
+                        <strong>닉네임:</strong> <span id="myNickname"></span>
                     </div>
-                </div>
-            </div>
-
-            <!-- Drawing Tools -->
-            <div class="drawing-tools" id="drawingTools" style="display: none;">
-                <div class="tool-group">
-                    <label>색상:</label>
-                    <div class="color-picker">
-                        <button class="color-btn" data-color="#FF6B6B" style="background: #FF6B6B"></button>
-                        <button class="color-btn" data-color="#4ECDC4" style="background: #4ECDC4"></button>
-                        <button class="color-btn" data-color="#45B7D1" style="background: #45B7D1"></button>
-                        <button class="color-btn" data-color="#FFA07A" style="background: #FFA07A"></button>
-                        <button class="color-btn" data-color="#98D8C8" style="background: #98D8C8"></button>
-                        <button class="color-btn" data-color="#F7DC6F" style="background: #F7DC6F"></button>
-                        <button class="color-btn" data-color="#BB8FCE" style="background: #BB8FCE"></button>
-                        <button class="color-btn active" data-color="#000000" style="background: #000000"></button>
-                    </div>
-                </div>
-                <div class="tool-group">
-                    <label>굵기:</label>
-                    <input type="range" id="brushSize" min="1" max="20" value="3" />
-                    <span id="brushSizeValue">3</span>px
-                </div>
-                <div class="tool-group">
-                    <button id="clearBtn" class="btn btn-warning">🗑️ 전체 지우기</button>
-                    <button id="eraserBtn" class="btn btn-secondary">지우개</button>
                 </div>
             </div>
         </div>
 
-        <!-- Canvas -->
-        <div class="canvas-container" id="canvasContainer" style="display: none;">
-            <canvas id="drawingCanvas"></canvas>
-            <div id="cursors"></div>
+        <!-- Game Panel -->
+        <div id="gamePanel" style="display: none;">
+            <!-- Game Info -->
+            <div class="game-info">
+                <div class="timer-section">
+                    <div class="timer-label">남은 시간</div>
+                    <div id="timer" class="timer">60</div>
+                </div>
+                <div class="word-section">
+                    <div class="turn-info" id="turnInfo">당신의 차례입니다!</div>
+                    <div id="wordDisplay" class="word-display">_ _ _ _ _</div>
+                    <div id="wordChoices" class="word-choices" style="display: none;">
+                        <button class="word-choice-btn" id="word1"></button>
+                        <button class="word-choice-btn" id="word2"></button>
+                        <button class="word-choice-btn" id="word3"></button>
+                    </div>
+                </div>
+                <div class="score-section">
+                    <div class="round-info">
+                        라운드 <span id="currentRound">1</span> / <span id="totalRounds">3</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Game Area -->
+            <div class="game-area">
+                <!-- Scoreboard -->
+                <div class="scoreboard">
+                    <h3>🏆 점수판</h3>
+                    <div id="playerList"></div>
+                </div>
+
+                <!-- Canvas & Tools -->
+                <div class="canvas-section">
+                    <!-- Drawing Tools -->
+                    <div class="drawing-tools" id="drawingTools">
+                        <div class="tool-group">
+                            <div class="color-picker">
+                                <button class="color-btn" data-color="#000000" style="background: #000000"></button>
+                                <button class="color-btn" data-color="#FFFFFF" style="background: #FFFFFF; border: 1px solid #ccc"></button>
+                                <button class="color-btn" data-color="#FF6B6B" style="background: #FF6B6B"></button>
+                                <button class="color-btn" data-color="#4ECDC4" style="background: #4ECDC4"></button>
+                                <button class="color-btn" data-color="#45B7D1" style="background: #45B7D1"></button>
+                                <button class="color-btn" data-color="#FFA07A" style="background: #FFA07A"></button>
+                                <button class="color-btn" data-color="#F7DC6F" style="background: #F7DC6F"></button>
+                                <button class="color-btn" data-color="#BB8FCE" style="background: #BB8FCE"></button>
+                            </div>
+                        </div>
+                        <div class="tool-group">
+                            <input type="range" id="brushSize" min="2" max="30" value="5" />
+                            <span id="brushSizeValue">5</span>px
+                        </div>
+                        <div class="tool-group">
+                            <button id="clearBtn" class="btn btn-warning">🗑️ 지우기</button>
+                        </div>
+                    </div>
+
+                    <!-- Canvas -->
+                    <div class="canvas-container">
+                        <canvas id="drawingCanvas"></canvas>
+                        <div id="cursors"></div>
+                        <div id="canvasOverlay" class="canvas-overlay"></div>
+                    </div>
+                </div>
+
+                <!-- Chat -->
+                <div class="chat-section">
+                    <h3>💬 채팅</h3>
+                    <div id="chatMessages" class="chat-messages"></div>
+                    <div class="chat-input-container">
+                        <input type="text" id="chatInput" placeholder="정답을 입력하세요..." />
+                        <button id="sendChatBtn" class="btn btn-primary">전송</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Status -->
@@ -73,6 +127,7 @@
 
     <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="game-logic.js"></script>
     <script src="peer-connection.js"></script>
     <script src="app.js"></script>
 </body>
