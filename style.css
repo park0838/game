@@ -191,6 +191,110 @@ input[type="text"]:focus {
     gap: 10px;
 }
 
+/* 대기실 */
+#waitingRoom {
+    background: white;
+    padding: 30px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    margin-top: 20px;
+}
+
+.waiting-room-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.waiting-room-header h3 {
+    font-size: 1.8rem;
+    color: var(--text-dark);
+    margin-bottom: 10px;
+}
+
+.waiting-subtitle {
+    color: #666;
+    font-size: 1rem;
+}
+
+.waiting-players {
+    margin-bottom: 30px;
+}
+
+.waiting-players h4 {
+    color: var(--text-dark);
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+}
+
+.waiting-player-list {
+    display: grid;
+    gap: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.waiting-player-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: var(--bg-light);
+    border-radius: var(--radius);
+    transition: all 0.2s;
+}
+
+.waiting-player-item.host {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+}
+
+.waiting-player-item.me {
+    border: 2px solid var(--secondary);
+}
+
+.waiting-player-icon {
+    font-size: 2rem;
+}
+
+.waiting-player-info {
+    flex: 1;
+}
+
+.waiting-player-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 3px;
+}
+
+.waiting-player-badge {
+    font-size: 0.85rem;
+    padding: 3px 8px;
+    background: var(--warning);
+    color: white;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.waiting-player-item.host .waiting-player-badge {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.waiting-actions {
+    text-align: center;
+}
+
+.waiting-actions .btn {
+    min-width: 250px;
+    padding: 15px 30px;
+    font-size: 1.1rem;
+}
+
+.waiting-message {
+    color: #666;
+    font-size: 1rem;
+    margin-top: 15px;
+}
+
 /* 게임 패널 */
 .game-info {
     display: grid;

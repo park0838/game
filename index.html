@@ -42,6 +42,24 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Waiting Room -->
+            <div id="waitingRoom" style="display: none;">
+                <div class="waiting-room-header">
+                    <h3>🎮 대기실</h3>
+                    <p class="waiting-subtitle">플레이어가 모이면 게임을 시작하세요!</p>
+                </div>
+                <div class="waiting-players">
+                    <h4>참가자 (<span id="waitingPlayerCount">1</span>명)</h4>
+                    <div id="waitingPlayerList" class="waiting-player-list"></div>
+                </div>
+                <div class="waiting-actions">
+                    <button id="startGameBtn" class="btn btn-warning" style="display: none;">
+                        🚀 게임 시작 (최소 2명)
+                    </button>
+                    <p id="waitingMessage" class="waiting-message">호스트가 게임을 시작할 때까지 기다려주세요...</p>
+                </div>
+            </div>
         </div>
 
         <!-- Game Panel -->

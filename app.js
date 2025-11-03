@@ -13,6 +13,13 @@ const DOM = {
     myNickname: document.getElementById('myNickname'),
     copyLinkBtn: document.getElementById('copyLinkBtn'),
 
+    // 대기실 요소
+    waitingRoom: document.getElementById('waitingRoom'),
+    waitingPlayerList: document.getElementById('waitingPlayerList'),
+    waitingPlayerCount: document.getElementById('waitingPlayerCount'),
+    startGameBtn: document.getElementById('startGameBtn'),
+    waitingMessage: document.getElementById('waitingMessage'),
+
     // 게임 요소
     gamePanel: document.getElementById('gamePanel'),
     timer: document.getElementById('timer'),
@@ -264,6 +271,47 @@ const gameUI = {
     updateRoundInfo() {
         DOM.currentRound.textContent = state.game?.currentRound || 1;
         DOM.totalRounds.textContent = state.game?.totalRounds || 3;
+    },
+
+    // 대기실 플레이어 목록 업데이트
+    updateWaitingRoom() {
+        if (!state.game) return;
+
+        const players = Array.from(state.game.players.entries());
+        const isHost = state.peerConnection?.isHost;
+
+        DOM.waitingPlayerCount.textContent = players.length;
+        DOM.waitingPlayerList.innerHTML = players.map(([peerId, player]) => {
+            const isMe = peerId === state.game.myPeerId;
+            const isHostPlayer = peerId === state.peerConnection?.peer?.id && isHost;
+
+            return `
+                <div class="waiting-player-item ${isHostPlayer ? 'host' : ''} ${isMe ? 'me' : ''}">
+                    <div class="waiting-player-icon">👤</div>
+                    <div class="waiting-player-info">
+                        <div class="waiting-player-name">
+                            ${player.nickname}
+                            ${isMe ? ' (나)' : ''}
+                        </div>
+                        ${isHostPlayer ? '<span class="waiting-player-badge">👑 방장</span>' : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // 호스트만 시작 버튼 표시
+        if (isHost) {
+            DOM.startGameBtn.style.display = 'block';
+            DOM.waitingMessage.style.display = 'none';
+            // 최소 2명 이상일 때만 활성화
+            DOM.startGameBtn.disabled = players.length < 2;
+            DOM.startGameBtn.textContent = players.length < 2
+                ? '🚀 게임 시작 (최소 2명)'
+                : `🚀 게임 시작 (${players.length}명)`;
+        } else {
+            DOM.startGameBtn.style.display = 'none';
+            DOM.waitingMessage.style.display = 'block';
+        }
     }
 };
 
@@ -281,7 +329,15 @@ function handleDataReceived(data, peerId) {
     else if (data.type === 'player-join') {
         state.game?.addPlayer(data.peerId, data.nickname);
         utils.addChatMessage('', `${data.nickname}님이 입장했습니다.`, true);
+        gameUI.updateWaitingRoom();
         gameUI.updateScoreboard();
+    }
+    else if (data.type === 'start-game') {
+        // 게임 시작 - 대기실 숨기고 게임 패널 표시
+        DOM.waitingRoom.style.display = 'none';
+        DOM.gamePanel.style.display = 'block';
+        state.game?.startGame();
+        utils.addChatMessage('', '게임이 시작되었습니다!', true);
     }
     else if (data.type === 'chat') {
         utils.addChatMessage(data.nickname, data.message);
@@ -323,12 +379,14 @@ DOM.createRoomBtn.addEventListener('click', async () => {
         state.peerConnection.onDataReceived = handleDataReceived;
         state.peerConnection.onPeerConnected = (peerId) => {
             utils.showStatus('새로운 참가자가 들어왔습니다!', 'success');
+            gameUI.updateWaitingRoom();
             gameUI.updateScoreboard();
         };
         state.peerConnection.onPeerDisconnected = (peerId) => {
             state.game?.removePlayer(peerId);
             cursor.remove(peerId);
             utils.showStatus('참가자가 나갔습니다.', 'info');
+            gameUI.updateWaitingRoom();
             gameUI.updateScoreboard();
         };
 
@@ -348,11 +406,10 @@ DOM.createRoomBtn.addEventListener('click', async () => {
 
         DOM.currentRoomId.textContent = roomId;
         DOM.roomInfo.style.display = 'flex';
-        DOM.lobbyPanel.style.display = 'none';
-        DOM.gamePanel.style.display = 'block';
+        DOM.waitingRoom.style.display = 'block';
 
         utils.initCanvas();
-        gameUI.updateScoreboard();
+        gameUI.updateWaitingRoom();
         gameUI.updateRoundInfo();
         utils.showStatus('방이 생성되었습니다! 링크를 공유하세요.', 'success');
     } catch (err) {
@@ -384,6 +441,7 @@ DOM.joinRoomBtn.addEventListener('click', async () => {
         state.peerConnection.onPeerDisconnected = (peerId) => {
             state.game?.removePlayer(peerId);
             cursor.remove(peerId);
+            gameUI.updateWaitingRoom();
             gameUI.updateScoreboard();
         };
 
@@ -405,11 +463,10 @@ DOM.joinRoomBtn.addEventListener('click', async () => {
 
         DOM.currentRoomId.textContent = roomId;
         DOM.roomInfo.style.display = 'flex';
-        DOM.lobbyPanel.style.display = 'none';
-        DOM.gamePanel.style.display = 'block';
+        DOM.waitingRoom.style.display = 'block';
 
         utils.initCanvas();
-        gameUI.updateScoreboard();
+        gameUI.updateWaitingRoom();
         gameUI.updateRoundInfo();
         utils.showStatus('방에 참가했습니다!', 'success');
     } catch (err) {
@@ -423,6 +480,24 @@ DOM.copyLinkBtn.addEventListener('click', () => {
     navigator.clipboard.writeText(url)
         .then(() => utils.showStatus('링크가 복사되었습니다!', 'success'))
         .catch(() => utils.showStatus('링크 복사 실패', 'error'));
+});
+
+// 게임 시작 (호스트만)
+DOM.startGameBtn.addEventListener('click', () => {
+    if (!state.peerConnection?.isHost) return;
+    if (state.game.players.size < 2) {
+        utils.showStatus('최소 2명 이상 필요합니다!', 'error');
+        return;
+    }
+
+    // 모든 플레이어에게 게임 시작 알림
+    state.peerConnection.send({ type: 'start-game' }, true);
+
+    // 본인도 게임 시작
+    DOM.waitingRoom.style.display = 'none';
+    DOM.gamePanel.style.display = 'block';
+    state.game.startGame();
+    utils.addChatMessage('', '게임이 시작되었습니다!', true);
 });
 
 // 채팅 전송
