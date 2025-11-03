@@ -95,12 +95,25 @@ const utils = {
     },
 
     // 채팅 메시지 추가
-    addChatMessage(nickname, message, isSystem = false) {
+    addChatMessage(nickname, message, isSystem = false, profile = null) {
         const msgDiv = document.createElement('div');
         msgDiv.className = isSystem ? 'chat-message system' : 'chat-message';
-        msgDiv.innerHTML = isSystem
-            ? `<span class="system-text">${message}</span>`
-            : `<strong>${nickname}:</strong> ${message}`;
+
+        if (isSystem) {
+            msgDiv.innerHTML = `<span class="system-text">${message}</span>`;
+        } else if (profile) {
+            msgDiv.innerHTML = `
+                <div class="chat-profile" style="background: ${profile.color}">
+                    ${profile.avatar}
+                </div>
+                <div class="chat-content">
+                    <strong>${nickname}:</strong> ${message}
+                </div>
+            `;
+        } else {
+            msgDiv.innerHTML = `<strong>${nickname}:</strong> ${message}`;
+        }
+
         DOM.chatMessages.appendChild(msgDiv);
         DOM.chatMessages.scrollTop = DOM.chatMessages.scrollHeight;
     }
@@ -229,13 +242,18 @@ const gameUI = {
         if (!state.game) return;
 
         const ranking = state.game.getRanking();
-        DOM.playerList.innerHTML = ranking.map((player, i) => `
-            <div class="player-item ${player.peerId === state.game.myPeerId ? 'me' : ''}">
-                <span class="rank">${i + 1}</span>
-                <span class="nickname">${player.nickname}</span>
-                <span class="score">${player.score}점</span>
-            </div>
-        `).join('');
+        DOM.playerList.innerHTML = ranking.map((player, i) => {
+            const playerData = state.game.players.get(player.peerId);
+            const profile = playerData?.profile;
+            return `
+                <div class="player-item ${player.peerId === state.game.myPeerId ? 'me' : ''}">
+                    <span class="rank">${i + 1}</span>
+                    ${profile ? `<div class="player-profile" style="background: ${profile.color}">${profile.avatar}</div>` : ''}
+                    <span class="nickname">${player.nickname}</span>
+                    <span class="score">${player.score}점</span>
+                </div>
+            `;
+        }).join('');
     },
 
     updateTimer(time) {
@@ -280,14 +298,17 @@ const gameUI = {
         const players = Array.from(state.game.players.entries());
         const isHost = state.peerConnection?.isHost;
 
-        DOM.waitingPlayerCount.textContent = players.length;
+        DOM.waitingPlayerCount.textContent = `${players.length}/6`;
         DOM.waitingPlayerList.innerHTML = players.map(([peerId, player]) => {
             const isMe = peerId === state.game.myPeerId;
             const isHostPlayer = peerId === state.peerConnection?.peer?.id && isHost;
+            const profile = player.profile;
 
             return `
                 <div class="waiting-player-item ${isHostPlayer ? 'host' : ''} ${isMe ? 'me' : ''}">
-                    <div class="waiting-player-icon">👤</div>
+                    <div class="waiting-player-profile" style="background: ${profile.color}">
+                        ${profile.avatar}
+                    </div>
                     <div class="waiting-player-info">
                         <div class="waiting-player-name">
                             ${player.nickname}
@@ -307,7 +328,7 @@ const gameUI = {
             DOM.startGameBtn.disabled = players.length < 2;
             DOM.startGameBtn.textContent = players.length < 2
                 ? '🚀 게임 시작 (최소 2명)'
-                : `🚀 게임 시작 (${players.length}명)`;
+                : `🚀 게임 시작 (${players.length}/6명)`;
         } else {
             DOM.startGameBtn.style.display = 'none';
             DOM.waitingMessage.style.display = 'block';
@@ -327,10 +348,15 @@ function handleDataReceived(data, peerId) {
     }
     // 게임 로직 관련
     else if (data.type === 'player-join') {
-        state.game?.addPlayer(data.peerId, data.nickname);
-        utils.addChatMessage('', `${data.nickname}님이 입장했습니다.`, true);
-        gameUI.updateWaitingRoom();
-        gameUI.updateScoreboard();
+        const added = state.game?.addPlayer(data.peerId, data.nickname, data.profile);
+        if (added) {
+            utils.addChatMessage('', `${data.nickname}님이 입장했습니다.`, true);
+            gameUI.updateWaitingRoom();
+            gameUI.updateScoreboard();
+        } else {
+            // 최대 인원 초과
+            utils.addChatMessage('', '방이 가득 찼습니다. (최대 6명)', true);
+        }
     }
     else if (data.type === 'start-game') {
         // 게임 시작 - 대기실 숨기고 게임 패널 표시
@@ -340,7 +366,8 @@ function handleDataReceived(data, peerId) {
         utils.addChatMessage('', '게임이 시작되었습니다!', true);
     }
     else if (data.type === 'chat') {
-        utils.addChatMessage(data.nickname, data.message);
+        const playerData = state.game?.players.get(peerId);
+        utils.addChatMessage(data.nickname, data.message, false, playerData?.profile);
         // 정답 확인
         const result = state.game?.checkAnswer(peerId, data.message);
         if (result?.correct) {
@@ -454,11 +481,13 @@ DOM.joinRoomBtn.addEventListener('click', async () => {
         state.game.onScoreUpdate = gameUI.updateScoreboard;
         state.game.onGameStateChange = gameUI.updateTurnInfo;
 
-        // 호스트에게 참가 알림
+        // 호스트에게 참가 알림 (프로필 포함)
+        const myProfile = state.game.players.get(state.peerConnection.peer.id)?.profile;
         state.peerConnection.send({
             type: 'player-join',
             peerId: state.peerConnection.peer.id,
-            nickname: state.nickname
+            nickname: state.nickname,
+            profile: myProfile
         });
 
         DOM.currentRoomId.textContent = roomId;
@@ -511,7 +540,9 @@ const sendChat = () => {
         message
     });
 
-    utils.addChatMessage(state.nickname, message);
+    // 내 프로필과 함께 표시
+    const myProfile = state.game?.players.get(state.game.myPeerId)?.profile;
+    utils.addChatMessage(state.nickname, message, false, myProfile);
     DOM.chatInput.value = '';
 };
 

@@ -2,9 +2,10 @@
 class SketchQuizGame {
     constructor() {
         // 게임 설정
-        this.roundTime = 60;
+        this.roundTime = 180; // 3분 (맞추는 시간)
         this.totalRounds = 3;
-        this.hintInterval = 15;
+        this.hintInterval = 30; // 30초마다 힌트
+        this.maxPlayers = 6; // 최대 6명
 
         // 게임 상태
         this.gameState = 'lobby'; // lobby, playing, roundEnd, gameEnd
@@ -16,7 +17,7 @@ class SketchQuizGame {
         this.hintLevel = 0;
 
         // 플레이어 관리
-        this.players = new Map(); // peerId -> {nickname, score, hasGuessed}
+        this.players = new Map(); // peerId -> {nickname, score, hasGuessed, profile}
         this.myPeerId = null;
         this.myNickname = null;
         this.turnOrder = [];
@@ -26,6 +27,29 @@ class SketchQuizGame {
         this.onGameStateChange = null;
         this.onTimerUpdate = null;
         this.onScoreUpdate = null;
+    }
+
+    // 프로필 아바타 풀
+    avatars = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮'];
+
+    // 프로필 색상 풀
+    colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788', '#E76F51', '#2A9D8F'];
+
+    // 랜덤 프로필 생성
+    generateProfile() {
+        const usedAvatars = Array.from(this.players.values()).map(p => p.profile?.avatar);
+        const availableAvatars = this.avatars.filter(a => !usedAvatars.includes(a));
+        const avatar = availableAvatars.length > 0
+            ? availableAvatars[Math.floor(Math.random() * availableAvatars.length)]
+            : this.avatars[Math.floor(Math.random() * this.avatars.length)];
+
+        const usedColors = Array.from(this.players.values()).map(p => p.profile?.color);
+        const availableColors = this.colors.filter(c => !usedColors.includes(c));
+        const color = availableColors.length > 0
+            ? availableColors[Math.floor(Math.random() * availableColors.length)]
+            : this.colors[Math.floor(Math.random() * this.colors.length)];
+
+        return { avatar, color };
     }
 
     // 단어 은행
@@ -43,16 +67,24 @@ class SketchQuizGame {
     ];
 
     // 플레이어 추가
-    addPlayer(peerId, nickname) {
+    addPlayer(peerId, nickname, profile = null) {
         if (!this.players.has(peerId)) {
+            // 최대 인원 체크
+            if (this.players.size >= this.maxPlayers) {
+                return false;
+            }
+
             this.players.set(peerId, {
                 nickname,
                 score: 0,
-                hasGuessed: false
+                hasGuessed: false,
+                profile: profile || this.generateProfile()
             });
             this.updateTurnOrder();
             this.onScoreUpdate?.();
+            return true;
         }
+        return false;
     }
 
     // 플레이어 제거
